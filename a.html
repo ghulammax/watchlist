@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WatchlistKu — Malam Pemutaran</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS v4 -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+
+    <style type="text/tailwindcss">
+        @import "tailwindcss";
+        @theme {
+            --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+            --font-display: "Bebas Neue", "Inter", sans-serif;
+
+            /* Palet "Malam Pemutaran": noir hangat + brass (Film) + teal (Series) */
+            --color-noir-950: #14090c;
+            --color-noir-900: #1c0f13;
+            --color-noir-850: #24141a;
+            --color-noir-800: #2d1922;
+            --color-noir-700: #3d222b;
+            --color-noir-600: #55303a;
+
+            --color-brass-200: #f8e3ab;
+            --color-brass-300: #f0c868;
+            --color-brass-400: #d9a94e;
+            --color-brass-500: #b8863a;
+            --color-brass-600: #96692a;
+
+            --color-teal-300: #97dcd2;
+            --color-teal-400: #54a89e;
+            --color-teal-500: #357c74;
+            --color-teal-600: #235953;
+
+            --color-cream-100: #f8eeDF;
+            --color-cream-300: #e6d5b8;
+
+            --color-crimson-400: #d1707c;
+            --color-crimson-500: #b5424f;
+            --color-crimson-600: #93313c;
+        }
+
+        button, input, select { font: inherit; }
+
+        /* Scrollbar bertema brass */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #55303a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #96692a; }
+
+        /* Tekstur film-grain sangat halus di seluruh layar */
+        .film-grain {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+        }
+
+        /* Baris "lubang sprocket" ala pita film / tepi tiket sobek */
+        .sprocket-row {
+            height: 8px;
+            background-image: radial-gradient(circle, rgba(217,169,78,0.55) 2px, transparent 2.2px);
+            background-size: 15px 8px;
+            background-repeat: repeat-x;
+            background-position: center;
+        }
+
+        /* Animasi lampu marquee berjalan, dipakai pada elemen aksi utama */
+        @keyframes marqueeGlow {
+            0%, 100% { box-shadow: 0 0 18px 0 rgba(240,200,104,0.35), 0 0 0 1px rgba(240,200,104,0.25) inset; }
+            50% { box-shadow: 0 0 30px 4px rgba(240,200,104,0.55), 0 0 0 1px rgba(240,200,104,0.4) inset; }
+        }
+        .marquee-glow:hover { animation: marqueeGlow 1.6s ease-in-out infinite; }
+
+        /* Animasi Bunga Mekar (dipertahankan untuk kartu sub-film) */
+        @keyframes bloomIn {
+            0% { opacity: 0; transform: translateY(-30px) scale(0.6) rotate(-3deg); }
+            100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+        }
+        .animate-bloom {
+            animation: bloomIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .marquee-glow:hover { animation: none; }
+            .animate-bloom { animation: none; opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-noir-950 text-cream-100 antialiased flex h-screen overflow-hidden selection:bg-brass-400 selection:text-noir-950">
+
+    <!-- Efek Cahaya Latar Belakang + Tekstur Grain -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div class="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-crimson-600/20 blur-[150px]"></div>
+        <div class="absolute top-[60%] -right-[10%] w-[40%] h-[50%] rounded-full bg-teal-600/20 blur-[150px]"></div>
+        <div class="film-grain absolute inset-0"></div>
+    </div>
+
+    <!-- SIDEBAR KIRI -->
+    <aside class="w-20 md:w-64 bg-noir-900/85 backdrop-blur-2xl border-r border-noir-700 flex flex-col p-4 z-20 transition-all duration-300">
+        <div class="flex items-center justify-center md:justify-start gap-3 mb-10 mt-4 cursor-pointer" onclick="showHome()">
+            <span class="text-3xl drop-shadow-lg">🎞️</span>
+            <h1 class="hidden md:block m-0 text-3xl font-[family-name:--font-display] text-transparent bg-clip-text bg-gradient-to-r from-brass-300 to-cream-100 tracking-wide">WatchlistKu</h1>
+        </div>
+        <div class="hidden md:block sprocket-row mb-8 opacity-70"></div>
+
+        <nav class="flex flex-col gap-2 w-full">
+            <button onclick="showHome()" class="w-full flex items-center justify-center md:justify-start gap-4 px-4 py-3 text-cream-300/70 hover:text-cream-100 hover:bg-noir-800/80 rounded-2xl transition-all font-semibold group">
+                <span class="text-xl group-hover:scale-110 transition-transform">🏠</span>
+                <span class="hidden md:block">Beranda</span>
+            </button>
+            <button onclick="showPlatforms('Series')" class="w-full flex items-center justify-center md:justify-start gap-4 px-4 py-3 text-cream-300/70 hover:text-teal-300 hover:bg-noir-800/80 rounded-2xl transition-all font-semibold group">
+                <span class="text-xl group-hover:scale-110 transition-transform">📺</span>
+                <span class="hidden md:block">Semua Series</span>
+            </button>
+            <button onclick="showPlatforms('Film')" class="w-full flex items-center justify-center md:justify-start gap-4 px-4 py-3 text-cream-300/70 hover:text-brass-300 hover:bg-noir-800/80 rounded-2xl transition-all font-semibold group">
+                <span class="text-xl group-hover:scale-110 transition-transform">🎬</span>
+                <span class="hidden md:block">Semua Film</span>
+            </button>
+        </nav>
+
+        <div class="mt-auto w-full">
+            <button onclick="openModal()" class="marquee-glow w-full bg-gradient-to-r from-brass-500 via-brass-400 to-brass-300 hover:from-brass-400 hover:to-brass-200 text-noir-950 px-2 py-4 rounded-2xl font-extrabold shadow-lg transition-all flex justify-center items-center gap-2 hover:-translate-y-1">
+                <span class="text-2xl leading-none">+</span> <span class="hidden md:block tracking-wide">Tambah Baru</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- KONTEN UTAMA KANAN -->
+    <main class="flex-1 h-full overflow-y-auto relative z-10 p-6 md:p-10 scroll-smooth">
+        <div class="max-w-6xl mx-auto pb-20">
+
+            <!-- HALAMAN UTAMA -->
+            <div id="homeView" class="flex flex-col sm:flex-row gap-8 justify-center pt-10">
+                <button class="flex-1 h-72 rounded-[2rem] text-white shadow-2xl hover:-translate-y-3 transition-all duration-300 flex flex-col items-center justify-center gap-6 bg-noir-850/60 backdrop-blur-lg border border-noir-700 hover:border-teal-400/60 hover:shadow-[0_20px_45px_rgba(53,124,116,0.25)] group relative overflow-hidden" onclick="showPlatforms('Series')">
+                    <div class="absolute top-0 left-0 right-0 sprocket-row opacity-40"></div>
+                    <div class="p-6 bg-gradient-to-br from-teal-600 to-teal-300 rounded-3xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        <span class="text-6xl drop-shadow-md">📺</span>
+                    </div>
+                    <span class="text-4xl font-[family-name:--font-display] tracking-[0.2em] bg-clip-text text-transparent bg-gradient-to-r from-teal-300 to-cream-100">SERIES</span>
+                    <div class="absolute bottom-0 left-0 right-0 sprocket-row opacity-40"></div>
+                </button>
+                <button class="flex-1 h-72 rounded-[2rem] text-white shadow-2xl hover:-translate-y-3 transition-all duration-300 flex flex-col items-center justify-center gap-6 bg-noir-850/60 backdrop-blur-lg border border-noir-700 hover:border-brass-400/60 hover:shadow-[0_20px_45px_rgba(217,169,78,0.25)] group relative overflow-hidden" onclick="showPlatforms('Film')">
+                    <div class="absolute top-0 left-0 right-0 sprocket-row opacity-40"></div>
+                    <div class="p-6 bg-gradient-to-br from-crimson-600 to-brass-300 rounded-3xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        <span class="text-6xl drop-shadow-md">🎬</span>
+                    </div>
+                    <span class="text-4xl font-[family-name:--font-display] tracking-[0.2em] bg-clip-text text-transparent bg-gradient-to-r from-brass-300 to-cream-100">FILM</span>
+                    <div class="absolute bottom-0 left-0 right-0 sprocket-row opacity-40"></div>
+                </button>
+            </div>
+
+            <!-- HALAMAN PLATFORM -->
+            <div id="platformView" class="hidden">
+                <div class="flex justify-between items-center mb-10 bg-noir-850/50 backdrop-blur-md px-8 py-6 rounded-3xl shadow-lg border border-noir-700">
+                    <h2 id="platformHeaderTitle" class="text-2xl md:text-3xl font-[family-name:--font-display] tracking-wide text-cream-100 m-0">Pilih Platform</h2>
+                    <button class="bg-noir-800/60 hover:bg-noir-700 text-cream-100 px-6 py-3 rounded-xl font-bold transition-all border border-noir-600" onclick="showHome()">Kembali</button>
+                </div>
+
+                <!-- Kartu Platform tetap bg-white agar warna asli logo terlihat jelas -->
+                <div class="flex flex-wrap justify-center gap-6">
+                    <div class="bg-cream-100 rounded-3xl p-6 h-36 w-52 flex items-center justify-center shadow-lg border-2 border-transparent hover:border-brass-400 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(217,169,78,0.3)] transition-all cursor-pointer group" onclick="showList('HBO')">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/d/de/HBO_logo.svg" alt="HBO" class="max-w-full max-h-16 object-contain group-hover:scale-110 transition-transform">
+                    </div>
+                    <div class="bg-cream-100 rounded-3xl p-6 h-36 w-52 flex items-center justify-center shadow-lg border-2 border-transparent hover:border-brass-400 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(217,169,78,0.3)] transition-all cursor-pointer group" onclick="showList('Disney+')">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg" alt="Disney+" class="max-w-full max-h-20 object-contain group-hover:scale-110 transition-transform">
+                    </div>
+                    <div class="bg-cream-100 rounded-3xl p-6 h-36 w-52 flex items-center justify-center shadow-lg border-2 border-transparent hover:border-brass-400 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(217,169,78,0.3)] transition-all cursor-pointer group" onclick="showList('Prime Video')">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/1/11/Amazon_Prime_Video_logo.svg" alt="Prime Video" class="max-w-full max-h-12 object-contain group-hover:scale-110 transition-transform">
+                    </div>
+                    <div class="bg-cream-100 rounded-3xl p-6 h-36 w-52 flex items-center justify-center shadow-lg border-2 border-transparent hover:border-brass-400 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(217,169,78,0.3)] transition-all cursor-pointer group" onclick="showList('Netflix')">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" alt="Netflix" class="max-w-full max-h-16 object-contain group-hover:scale-110 transition-transform">
+                    </div>
+                    <!-- Off the Grid tetap bertema gelap karena hanya teks -->
+                    <div class="bg-noir-800/60 backdrop-blur-md rounded-3xl p-6 h-36 w-52 flex items-center justify-center shadow-lg border border-noir-600 hover:border-brass-400/60 hover:-translate-y-2 hover:bg-noir-800 transition-all cursor-pointer" onclick="showList('Off the Grid')">
+                        <span class="text-xl font-bold text-cream-300/70">🚫 Off the Grid</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HALAMAN DAFTAR -->
+            <div id="listView" class="hidden">
+                <div class="flex justify-between items-center mb-10 bg-noir-850/50 backdrop-blur-md px-8 py-6 rounded-3xl shadow-lg border border-noir-700">
+                    <h2 id="categoryTitle" class="text-2xl md:text-3xl font-[family-name:--font-display] tracking-wide text-cream-100 m-0">Daftar</h2>
+                    <button class="bg-noir-800/60 hover:bg-noir-700 text-cream-100 px-6 py-3 rounded-xl font-bold transition-all border border-noir-600" onclick="backToPlatforms()">Kembali</button>
+                </div>
+
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-x-6 gap-y-12" id="watchlistGrid"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL (Tiket Tambah Tontonan) -->
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden justify-center items-center z-[1000] p-4 transition-opacity" id="addModal" onclick="if(event.target === this) closeModal()">
+        <div class="bg-noir-900 border border-noir-700 p-8 rounded-[1.75rem] w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-3xl font-[family-name:--font-display] tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-brass-300 to-cream-100 mb-2 mt-0">Tambah Tontonan</h3>
+            <div class="sprocket-row mb-6 opacity-60"></div>
+
+            <div class="flex flex-col gap-4">
+                <input type="text" id="titleInput" placeholder="Masukkan judul utama..." class="w-full px-5 py-4 bg-noir-950 border border-noir-700 rounded-2xl focus:outline-none focus:border-brass-400 focus:ring-1 focus:ring-brass-400 transition-all font-medium text-cream-100 placeholder-cream-300/40">
+
+                <select id="typeInput" onchange="toggleFilmCategory()" class="w-full px-5 py-4 bg-noir-950 border border-noir-700 rounded-2xl focus:outline-none focus:border-brass-400 transition-all text-cream-100 appearance-none">
+                    <option value="Film">Film</option>
+                    <option value="Series">Series</option>
+                </select>
+
+                <select id="filmCategoryInput" onchange="toggleFilmCategory()" class="w-full px-5 py-4 bg-noir-950 border border-noir-700 rounded-2xl focus:outline-none focus:border-brass-400 transition-all text-cream-100 appearance-none">
+                    <option value="Tunggal">Film Tunggal</option>
+                    <option value="Berkelanjutan">Film Berkelanjutan (Franchise)</option>
+                </select>
+
+                <input type="number" id="partCountInput" placeholder="Berapa banyak seri filmnya? (misal: 3, maks 25)" min="2" max="25" class="hidden w-full px-5 py-4 bg-noir-950 border border-noir-700 rounded-2xl focus:outline-none focus:border-brass-400 transition-all font-medium text-cream-100 placeholder-cream-300/40" oninput="generateSubMovieInputs()">
+
+                <div id="subMoviesContainer" class="hidden flex-col gap-3 mt-2 p-4 bg-noir-850/60 border border-noir-700 rounded-2xl max-h-64 overflow-y-auto"></div>
+
+                <select id="platformInput" class="w-full px-5 py-4 bg-noir-950 border border-noir-700 rounded-2xl focus:outline-none focus:border-brass-400 transition-all text-cream-100 mt-2 appearance-none">
+                    <option value="HBO">HBO</option><option value="Disney+">Disney+</option>
+                    <option value="Prime Video">Prime Video</option><option value="Netflix">Netflix</option>
+                    <option value="Off the Grid">Off the Grid</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end gap-4 mt-8">
+                <button class="px-6 py-3 bg-noir-800 hover:bg-noir-700 text-cream-100 rounded-xl font-bold transition-colors border border-noir-600" onclick="closeModal()">Batal</button>
+                <button class="marquee-glow px-6 py-3 bg-gradient-to-r from-brass-500 via-brass-400 to-brass-300 hover:from-brass-400 hover:to-brass-200 text-noir-950 rounded-xl font-extrabold shadow-lg transition-all" onclick="addItem()">Simpan Data</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const MAX_PARTS = 50;
+
+    // Parsing data localStorage dibuat aman: jika data korup/tidak valid,
+    // aplikasi tidak akan crash, cukup mulai dari watchlist kosong.
+    let watchlist = [];
+    try {
+        watchlist = JSON.parse(localStorage.getItem('myWatchlist')) || [];
+        if (!Array.isArray(watchlist)) watchlist = [];
+    } catch (e) {
+        console.error('Data watchlist tersimpan tidak valid, direset ke kosong.', e);
+        watchlist = [];
+    }
+    let currentCategory = ''; let currentPlatform = '';
+
+    // Escape teks buatan user sebelum dimasukkan lewat innerHTML,
+    // supaya judul yang mengandung karakter HTML (<, >, ", dsb) tidak
+    // merusak tampilan atau membuka celah XSS.
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str ?? '';
+        return div.innerHTML;
+    }
+
+    function getSmartIcon(title) {
+        const text = title.toLowerCase();
+        const rules = [
+            { words: ['toy', 'story', 'game', 'play', 'mario'], icon: '🧸' },
+            { words: ['star', 'space', 'galaxy', 'alien', 'wars', 'moon'], icon: '🌌' },
+            { words: ['spider', 'web', 'venom'], icon: '🕷️' },
+            { words: ['batman', 'dark', 'knight', 'vampire', 'dracula'], icon: '🦇' },
+            { words: ['magic', 'potter', 'wizard', 'witch', 'ring'], icon: '🪄' },
+            { words: ['car', 'fast', 'furious', 'drive', 'race'], icon: '🏎️' },
+            { words: ['hero', 'man', 'avenger', 'marvel', 'super'], icon: '🦸‍♂️' },
+            { words: ['water', 'sea', 'ocean', 'fish', 'pirate'], icon: '🌊' },
+            { words: ['fight', 'war', 'battle', 'sword', 'ninja', 'wick'], icon: '⚔️' },
+            { words: ['horror', 'scary', 'ghost', 'conjuring', 'demon'], icon: '👻' },
+            { words: ['dinosaur', 'jurassic', 'park', 'kong', 'godzilla'], icon: '🦖' }
+        ];
+        for (let rule of rules) {
+            for (let word of rule.words) if (text.includes(word)) return rule.icon;
+        }
+        let firstLetter = title.charAt(0).toUpperCase();
+        if (!firstLetter.match(/[A-Z]/i)) firstLetter = '🍿';
+        return firstLetter + ' 🎬';
+    }
+
+    function hideAll() {
+        document.getElementById('homeView').classList.add('hidden');
+        document.getElementById('platformView').classList.add('hidden');
+        document.getElementById('listView').classList.add('hidden');
+    }
+
+    function showHome() { hideAll(); document.getElementById('homeView').classList.remove('hidden'); document.getElementById('homeView').classList.add('flex'); currentCategory = ''; currentPlatform = ''; }
+
+    function showPlatforms(category) {
+        currentCategory = category; hideAll();
+        const pv = document.getElementById('platformView');
+        pv.classList.remove('hidden'); pv.classList.add('block');
+        document.getElementById('platformHeaderTitle').innerText = 'Platform ' + category;
+    }
+
+    function showList(platform) {
+        currentPlatform = platform; hideAll();
+        const lv = document.getElementById('listView');
+        lv.classList.remove('hidden'); lv.classList.add('block');
+        document.getElementById('categoryTitle').innerText = `${currentCategory} — ${platform}`;
+        renderList();
+    }
+
+    function backToPlatforms() { showPlatforms(currentCategory); }
+
+    function toggleFilmCategory() {
+        const typeValue = document.getElementById('typeInput').value;
+        const filmCategoryDropdown = document.getElementById('filmCategoryInput');
+        const partCountInput = document.getElementById('partCountInput');
+        const subMoviesContainer = document.getElementById('subMoviesContainer');
+
+        if (typeValue === 'Film') {
+            filmCategoryDropdown.classList.remove('hidden'); filmCategoryDropdown.classList.add('block');
+            if (filmCategoryDropdown.value === 'Berkelanjutan') {
+                partCountInput.classList.remove('hidden'); partCountInput.classList.add('block');
+                subMoviesContainer.classList.remove('hidden'); subMoviesContainer.classList.add('flex');
+                generateSubMovieInputs();
+            } else {
+                partCountInput.classList.add('hidden'); subMoviesContainer.classList.add('hidden'); subMoviesContainer.innerHTML = '';
+            }
+        } else {
+            filmCategoryDropdown.classList.add('hidden'); partCountInput.classList.add('hidden'); subMoviesContainer.classList.add('hidden');
+        }
+    }
+
+    function generateSubMovieInputs() {
+        const container = document.getElementById('subMoviesContainer');
+        const partCountInput = document.getElementById('partCountInput');
+        let count = parseInt(partCountInput.value) || 0;
+
+        // Dibatasi otomatis ke MAX_PARTS (25) alih-alih diam-diam berhenti
+        // bekerja, supaya jelas bagi pengguna kalau ada batas maksimal.
+        if (count > MAX_PARTS) {
+            count = MAX_PARTS;
+            partCountInput.value = MAX_PARTS;
+        }
+
+        const existingInputs = container.querySelectorAll('.sub-movie-input');
+        const existingValues = Array.from(existingInputs).map(inp => inp.value);
+
+        container.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            let val = escapeHtml(existingValues[i] || '');
+            container.innerHTML += `<input type="text" class="sub-movie-input w-full px-4 py-3 bg-noir-950 border border-noir-700 border-l-4 border-l-brass-400 rounded-xl focus:outline-none focus:border-brass-400 text-sm font-medium text-cream-100 placeholder-cream-300/40" placeholder="Judul Film Ke-${i + 1}..." value="${val}" autocomplete="off">`;
+        }
+    }
+
+    function openModal() {
+        const modal = document.getElementById('addModal');
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+
+        if (currentCategory) document.getElementById('typeInput').value = currentCategory;
+        if (currentPlatform) document.getElementById('platformInput').value = currentPlatform;
+        document.getElementById('partCountInput').value = ''; document.getElementById('subMoviesContainer').innerHTML = '';
+        toggleFilmCategory();
+        setTimeout(() => document.getElementById('titleInput').focus(), 100);
+    }
+
+    function closeModal() { document.getElementById('addModal').classList.add('hidden'); document.getElementById('titleInput').value = ''; }
+
+    function addItem() {
+        const title = document.getElementById('titleInput').value.trim();
+        const type = document.getElementById('typeInput').value;
+        const platform = document.getElementById('platformInput').value;
+        let filmCategory = null; let partCount = null; let subMovies = [];
+
+        if (title === '') { alert('Judul tidak boleh kosong!'); return; }
+
+        if (type === 'Film') {
+            filmCategory = document.getElementById('filmCategoryInput').value;
+            if (filmCategory === 'Berkelanjutan') {
+                partCount = document.getElementById('partCountInput').value;
+                if (!partCount || parseInt(partCount) < 2) { alert('Minimal seri film adalah 2!'); return; }
+                if (parseInt(partCount) > MAX_PARTS) { alert(`Maksimal ${MAX_PARTS} seri film!`); return; }
+
+                const inputs = document.querySelectorAll('.sub-movie-input');
+                inputs.forEach((input, i) => {
+                    let subTitle = input.value.trim();
+                    if (subTitle === '') subTitle = `${title} Part ${i + 1}`;
+                    subMovies.push({ title: subTitle, watched: false });
+                });
+            }
+        }
+
+        const icon = getSmartIcon(title);
+        watchlist.push({ title, type, platform, filmCategory, partCount, icon, watched: false, isExpanded: false, subMovies });
+
+        closeModal(); saveData();
+        if (currentCategory === type && currentPlatform === platform) renderList();
+        else { currentCategory = type; showList(platform); }
+    }
+
+    function saveData() { localStorage.setItem('myWatchlist', JSON.stringify(watchlist)); }
+
+    function toggleExpand(index) { watchlist[index].isExpanded = !watchlist[index].isExpanded; saveData(); renderList(); }
+    function toggleWatched(index, event) { if (event) event.stopPropagation(); watchlist[index].watched = !watchlist[index].watched; saveData(); renderList(); }
+    function toggleSubWatched(mainIndex, subIndex, event) {
+        if (event) event.stopPropagation();
+        const item = watchlist[mainIndex];
+        item.subMovies[subIndex].watched = !item.subMovies[subIndex].watched;
+        // Status "watched" induk franchise dihitung ulang di sini, SEBELUM
+        // disimpan, supaya data yang tersimpan di localStorage selalu konsisten.
+        item.watched = item.subMovies.every(s => s.watched);
+        saveData();
+        renderList();
+    }
+    function deleteItem(index, event) { if (event) event.stopPropagation(); if (confirm('Yakin ingin menghapus judul ini?')) { watchlist.splice(index, 1); saveData(); renderList(); } }
+
+    function renderList() {
+        const gridElement = document.getElementById('watchlistGrid');
+        gridElement.innerHTML = '';
+
+        // Filter dilakukan sekali saja, sambil tetap menyimpan indeks asli
+        // (idx) di array `watchlist` — dipakai oleh tombol hapus/toggle/expand
+        // agar tetap menunjuk ke item yang benar.
+        const filteredList = watchlist
+            .map((item, idx) => ({ item, idx }))
+            .filter(({ item }) => {
+                let itemPlatform = item.platform || 'Off the Grid';
+                if (itemPlatform === 'Lainnya') itemPlatform = 'Off the Grid';
+                return item.type === currentCategory && itemPlatform === currentPlatform;
+            });
+
+        if (filteredList.length === 0) {
+            gridElement.innerHTML = `<div class="col-span-full text-center text-cream-300/50 py-20 italic text-lg bg-noir-900/40 rounded-3xl border border-noir-700 backdrop-blur-sm">Belum ada ${escapeHtml(currentCategory)} di ${escapeHtml(currentPlatform)}.<br><br>Klik tombol <b class="text-brass-300 not-italic">+ Tambah Baru</b> di menu samping.</div>`;
+            return;
+        }
+
+        // Warna aksen mengikuti kategori: Series = teal, Film = brass/gold —
+        // supaya struktur (jenis tontonan) langsung terbaca dari warna.
+        const isSeries = currentCategory === 'Series';
+        const accentBorder = isSeries ? 'hover:border-teal-400/70' : 'hover:border-brass-400/70';
+        const accentShadow = isSeries ? 'hover:shadow-[0_15px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(84,168,158,0.2)]' : 'hover:shadow-[0_15px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(217,169,78,0.2)]';
+        const expandedBorder = isSeries ? 'border-teal-400' : 'border-brass-400';
+        const expandedShadowColor = isSeries ? 'rgba(84,168,158,0.3)' : 'rgba(217,169,78,0.3)';
+        const stubBg = isSeries ? '#235953' : '#96692a';
+
+        filteredList.forEach(({ item, idx: index }) => {
+            if (item.filmCategory === 'Berkelanjutan' && !item.subMovies) {
+                item.subMovies = []; let c = parseInt(item.partCount) || 2;
+                for (let k = 0; k < c; k++) item.subMovies.push({ title: `${item.title} Part ${k + 1}`, watched: item.watched });
+            }
+
+            let badgeHtml = '';
+            if (item.filmCategory === 'Berkelanjutan') {
+                let count = item.subMovies.length;
+                let watchedCount = item.subMovies.filter(s => s.watched).length;
+                item.watched = (watchedCount === count);
+                badgeHtml = `<span class="text-[10px] uppercase tracking-wider font-bold px-3 py-1 ${item.watched ? 'bg-noir-700 text-cream-300/60' : (isSeries ? 'bg-teal-900/40 text-teal-300 border border-teal-600/50' : 'bg-brass-900/30 text-brass-300 border border-brass-600/50')} rounded-full mb-4">Franchise (${watchedCount}/${count} Selesai)</span>`;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = `relative transition-all duration-500 ${item.isExpanded ? 'col-span-full flex flex-col items-center z-20' : 'z-10'}`;
+
+            const card = document.createElement('div');
+
+            // KARTU BERTEMA "TIKET SOBEK": glass gelap + aksen brass/teal
+            card.className = `group bg-noir-850/80 backdrop-blur-md rounded-[1.75rem] border border-noir-700 p-6 flex flex-col items-center text-center relative w-full min-h-[240px] transition-all duration-300 ${item.isExpanded ? `scale-[1.05] shadow-[0_20px_50px_rgba(0,0,0,0.5)] ${expandedBorder} mb-8 max-w-sm` : `hover:-translate-y-2 ${accentShadow} ${accentBorder}`} ${item.watched ? 'opacity-60 grayscale bg-noir-900/90 border-dashed border-noir-700' : 'shadow-xl'}`;
+
+            if (item.filmCategory === 'Berkelanjutan') {
+                card.onclick = () => toggleExpand(index);
+                card.style.cursor = 'pointer';
+
+                if (!item.isExpanded) {
+                    let count = item.subMovies.length; let stackCount = Math.min(count - 1, 5);
+                    let shadows = [];
+                    for (let i = 1; i <= stackCount; i++) {
+                        let y = i * 5; let spread = -(i * 1.5);
+                        shadows.push(`0 ${y}px 0 ${spread}px ${stubBg}`);
+                        shadows.push(`0 ${y + 1}px 4px ${spread}px rgba(0,0,0,0.6)`);
+                    }
+                    shadows.push('0 10px 25px rgba(0,0,0,0.35)');
+                    card.style.boxShadow = shadows.join(', ');
+                    card.style.marginBottom = `${stackCount * 5}px`;
+                } else {
+                    card.style.boxShadow = `0 25px 50px -12px ${expandedShadowColor}`;
+                }
+            }
+
+            let titleClass = `text-xl font-extrabold text-cream-100 mb-2 leading-snug line-clamp-2 ${item.watched ? 'line-through text-cream-300/40' : ''}`;
+
+            let actionHtml = item.filmCategory === 'Berkelanjutan'
+                ? `<div class="mt-auto bg-noir-700/60 text-cream-300 px-5 py-2 rounded-full text-xs font-bold tracking-widest border border-noir-600 transition-colors ${isSeries ? 'group-hover:bg-teal-600 group-hover:border-teal-500' : 'group-hover:bg-brass-500 group-hover:border-brass-400'} group-hover:text-noir-950">${item.isExpanded ? '▲ TUTUP BUNDLE' : '▼ BUKA BUNDLE'}</div>`
+                : `<button class="mt-auto w-full px-4 py-3 rounded-full text-sm font-bold transition-all shadow-md ${item.watched ? 'bg-teal-600/80 text-white hover:bg-teal-500 border border-teal-500' : 'bg-noir-700 text-cream-200 hover:bg-noir-600 hover:text-cream-100 border border-noir-600'}" onclick="toggleWatched(${index}, event)">${item.watched ? '✔ Ditonton' : 'Tandai Selesai'}</button>`;
+
+            card.innerHTML = `
+                <button class="absolute top-4 right-4 bg-noir-700 text-cream-300/70 hover:bg-crimson-600 hover:text-white rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold transition-all opacity-0 group-hover:opacity-100 z-30 shadow-lg" onclick="deleteItem(${index}, event)" title="Hapus">✖</button>
+                <div class="text-7xl mb-3 drop-shadow-xl transform group-hover:scale-110 transition-transform duration-300">${escapeHtml(item.icon)}</div>
+                <div class="sprocket-row w-full mb-3 opacity-40"></div>
+                <div class="${titleClass}" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</div>
+                ${badgeHtml}
+                ${actionHtml}
+            `;
+            wrapper.appendChild(card);
+
+            if (item.filmCategory === 'Berkelanjutan' && item.isExpanded) {
+                const subContainer = document.createElement('div');
+                subContainer.className = 'flex flex-wrap justify-center gap-4 w-full bg-noir-900/80 p-8 rounded-[2rem] border border-noir-700 border-dashed backdrop-blur-xl shadow-inner relative';
+
+                item.subMovies.forEach((sub, subIndex) => {
+                    const subCard = document.createElement('div');
+                    subCard.className = `bg-noir-850 rounded-2xl p-5 w-44 flex flex-col items-center text-center shadow-lg opacity-0 animate-bloom ${sub.watched ? 'opacity-50 grayscale border-dashed border border-noir-700' : `border border-noir-700 ${isSeries ? 'hover:border-teal-400 hover:shadow-[0_0_15px_rgba(84,168,158,0.4)]' : 'hover:border-brass-400 hover:shadow-[0_0_15px_rgba(217,169,78,0.4)]'} hover:-translate-y-1 transition-all`}`;
+                    subCard.style.animationDelay = `${subIndex * 0.06}s`;
+
+                    subCard.innerHTML = `
+                        <div class="text-sm font-bold text-cream-200 mb-5 line-clamp-3 leading-snug ${sub.watched ? 'line-through text-cream-300/40' : ''}">${escapeHtml(sub.title)}</div>
+                        <button class="mt-auto w-full px-3 py-2 rounded-xl text-xs font-bold transition-all ${sub.watched ? 'bg-teal-600/50 text-white border border-teal-600/50' : `bg-noir-700 text-cream-300 ${isSeries ? 'hover:bg-teal-600' : 'hover:bg-brass-500'} hover:text-noir-950 border border-noir-600`}" onclick="toggleSubWatched(${index}, ${subIndex}, event)">
+                            ${sub.watched ? '✔ Selesai' : 'Tandai'}
+                        </button>
+                    `;
+                    subContainer.appendChild(subCard);
+                });
+                wrapper.appendChild(subContainer);
+            }
+
+            gridElement.appendChild(wrapper);
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !document.getElementById('addModal').classList.contains('hidden')) {
+            closeModal();
+        }
+    });
+
+    showHome();
+</script>
+
+</body>
+</html>
